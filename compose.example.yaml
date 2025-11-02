@@ -1,0 +1,72 @@
+volumes:
+    mysql:
+        driver: local
+
+networks:
+    main-proxy:
+        external: true
+    app:
+        external: false
+
+services:
+    metabase:
+        image: metabase/metabase:v0.56.x
+        volumes:
+            - ./metabase/data:/metabase-data:delegated
+            - ./metabase/plugins:/plugins:delegeated
+        environment:
+            MB_DB_TYPE: ${DB_TYPE}
+            MB_DB_DBNAME: ${DB_DATABASE}
+            MB_DB_PORT: ${DB_PORT}
+            MB_DB_USER: ${DB_USERNAME}
+            MB_DB_PASS: ${DB_PASSWORD}
+            MB_DB_HOST: ${DB_HOST}
+        labels:
+            caddy_0: ${MB_DOMAIN}
+            caddy_0.reverse_proxy: "{{upstreams 3000}}"
+        depends_on:
+            - mysql
+        restart: unless-stopped
+        networks:
+            - app
+            - main-proxy
+
+    mysql:
+        image: mariadb:lts
+        command:
+            - "--character-set-server=utf8mb4"
+            - "--collation-server=utf8mb4_unicode_ci"
+            - "--binlog_expire_logs_seconds=3600"
+            - '--skip-name-resolve' # Disable DNS lookups (not needed in Docker, improves performance)
+
+        volumes:
+            - mysql:/var/lib/mysql/:delegated
+        cap_add:
+            - SYS_NICE # CAP_SYS_NICE
+        environment:
+            MYSQL_INITDB_SKIP_TZINFO: "1"
+            MYSQL_ALLOW_EMPTY_PASSWORD: "false"
+            ### Database initialization config:
+            MYSQL_ROOT_HOST: '%'
+            MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+            MYSQL_USER: ${DB_USERNAME}
+            MYSQL_PASSWORD: ${DB_PASSWORD}
+            MYSQL_DATABASE: ${DB_DATABASE}
+        restart: unless-stopped
+        networks:
+            - app
+
+    phpmyadmin:
+        image: phpmyadmin/phpmyadmin:latest
+        environment:
+            PMA_HOST: mysql
+            UPLOAD_LIMIT: 300M
+        labels:
+            caddy_0: ${PMA_DOMAIN}
+            caddy_0.reverse_proxy: "{{upstreams 80}}"
+        depends_on:
+            - mysql
+        restart: unless-stopped
+        networks:
+            - app
+            - main-proxy
