@@ -57,7 +57,7 @@ services:
             - app
 
     phpmyadmin:
-        image: phpmyadmin/phpmyadmin:latest
+        image: phpmyadmin:latest
         environment:
             PMA_HOST: mysql
             UPLOAD_LIMIT: 300M
