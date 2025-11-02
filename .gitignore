@@ -1,3 +1,5 @@
 node_modules
 sql-backups
 backup-log.txt
+compose.yaml
+.env
